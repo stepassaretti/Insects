@@ -95,14 +95,15 @@ const slant=1/(1+controller.flight.altitude*.3);sun.position.copy(controller.pos
 controls.update();const zoomOut=Math.max(0,camera.position.distanceTo(controls.target)-20);const altitude=controller.flight.altitude;scene.fog.near=25+zoomOut+altitude*1.2;scene.fog.far=90+zoomOut*2+altitude*2; // Screen-space offset leaves room for the instrumentation.
 if(portraitLayout)camera.setViewOffset(innerWidth,innerHeight,0,innerHeight*.04,innerWidth,innerHeight);else camera.setViewOffset(innerWidth,innerHeight,-innerWidth*.09,innerHeight*.015,innerWidth,innerHeight);
 sound.update({speed:controller.speed,turn:controller.turn,legs:active.legs,wingSpread:active.wings.soundLevel??active.wings.motion.spread,paused,hidden:document.hidden});
-renderer.render(scene,camera);frame++;fpsTime+=elapsed;if(frame%6===0){touchControls?.setToggleStates({flying:controller.flight.active,displaying:active.displaying??false});document.querySelector('#speed').textContent=(Math.abs(controller.speed)/active.bodyLength).toFixed(2);document.querySelector('#speedbar').style.width=`${clamp(Math.abs(controller.speed)/(controller.topSpeed||params.sprintSpeed)*100,0,100)}%`;const words=copy[active.id].states;document.querySelector('#state').textContent=paused?'PAUSED':active.attacking?'STRIKING':active.stinging?'STINGING':controller.flight.altitude>.05?(controller.flight.landing?'LANDING':'FLYING'):active.wings.motion.spread>.5&&words.wings?words.wings:Math.abs(controller.speed)>(controller.walkSpeed??params.walkSpeed)*1.2?words.fast:Math.abs(controller.speed)>.1?words.walk:Math.abs(controller.turn)>.1?'TURNING':'EXPLORING';document.querySelectorAll('.gait b').forEach((el,i)=>{el.style.background=active.legs[i].planted?'currentColor':'transparent';});}if(fpsTime>.5){document.querySelector('#fps').textContent=Math.round(frame/fpsTime);frame=0;fpsTime=0;}}
+renderer.render(scene,camera);frame++;fpsTime+=elapsed;if(frame%6===0){touchControls?.setToggleStates(touchState());document.querySelector('#speed').textContent=(Math.abs(controller.speed)/active.bodyLength).toFixed(2);document.querySelector('#speedbar').style.width=`${clamp(Math.abs(controller.speed)/(controller.topSpeed||params.sprintSpeed)*100,0,100)}%`;const words=copy[active.id].states;document.querySelector('#state').textContent=paused?'PAUSED':active.attacking?'STRIKING':active.stinging?'STINGING':controller.flight.altitude>.05?(controller.flight.landing?'LANDING':'FLYING'):active.wings.motion.spread>.5&&words.wings?words.wings:Math.abs(controller.speed)>(controller.walkSpeed??params.walkSpeed)*1.2?words.fast:Math.abs(controller.speed)>.1?words.walk:Math.abs(controller.turn)>.1?'TURNING':'EXPLORING';document.querySelectorAll('.gait b').forEach((el,i)=>{el.style.background=active.legs[i].planted?'currentColor':'transparent';});}if(fpsTime>.5){document.querySelector('#fps').textContent=Math.round(frame/fpsTime);frame=0;fpsTime=0;}}
 requestAnimationFrame(animate);
 const movementCodes=['KeyW','KeyA','KeyS','KeyD','KeyC','KeyF','KeyG','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','ShiftLeft','ShiftRight'];
 const physicalKeys=new Set(),touchKeys=new Set();let touchControls;
 function syncKeys(){controller.keys.clear();for(const code of physicalKeys)controller.keys.add(code);for(const code of touchKeys)controller.keys.add(code);}
+function touchState(){return {flying:controller.flight.active,displaying:active.displaying??false,cautious:controller.keys.has('KeyC'),sprint:controller.keys.has('ShiftLeft')||controller.keys.has('ShiftRight')};}
 window.addEventListener('keydown',e=>{if(e.target.matches('input,button'))return;if(movementCodes.includes(e.code)){e.preventDefault();physicalKeys.add(e.code);syncKeys();if(!e.repeat){active.onKey?.(e.code);if(e.code==='KeyF')controller.flight.toggle();}}});
 window.addEventListener('keyup',e=>{physicalKeys.delete(e.code);syncKeys();});
-function releaseInputs(){physicalKeys.clear();touchKeys.clear();touchControls?.reset();syncKeys();}
+function releaseInputs(){physicalKeys.clear();touchControls?.reset();syncKeys();}
 window.addEventListener('blur',()=>{releaseInputs();sound.blocked=true;sound.silence();});window.addEventListener('focus',()=>sound.blocked=false);document.addEventListener('visibilitychange',()=>{if(document.hidden){releaseInputs();sound.silence();}last=performance.now();});
 window.addEventListener('resize',()=>{const nextPortrait=innerHeight>innerWidth;if(nextPortrait!==portraitLayout){camera.position.sub(controls.target).multiplyScalar(nextPortrait?20/15:15/20).add(controls.target);portraitLayout=nextPortrait;}renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
 window.__simulation={controller,params,renderer,camera,controls,sound,species,selectSpecies,get active(){return active;},get locomotion(){return active.locomotion;},get legs(){return active.legs;},get dorsalBody(){return active.wings;},get time(){return t;}};
@@ -121,10 +122,12 @@ const copy={
 };
 touchControls=setupTouchControls({
  controller,
- onActionDown(code,hold){
-  if(hold){touchKeys.add(code);syncKeys();}
-  else{active.onKey?.(code);if(code==='KeyF')controller.flight.toggle();}
-  touchControls.setToggleStates({flying:controller.flight.active,displaying:active.displaying??false});
+ onActionDown(code,mode){
+  if(mode==='hold'){touchKeys.add(code);syncKeys();}
+  else if(code==='KeyF')controller.flight.toggle();
+  else if(code==='KeyD'||code==='KeyG')active.onKey?.(code);
+  else{if(touchKeys.has(code))touchKeys.delete(code);else touchKeys.add(code);syncKeys();}
+  touchControls.setToggleStates(touchState());
  },
  onActionUp(code){touchKeys.delete(code);syncKeys();},
 });
@@ -141,7 +144,7 @@ function selectSpecies(id,{persist=true}={}){
  document.querySelector('.hint').innerHTML=id==='mantis'?'Scroll to zoom · F: take off / land · D: open/close wings · G: strike':'Fixed overhead camera · Scroll to zoom · F: take off / land';
  document.querySelector('.keys').innerHTML=c.legend.map(([key,label,hint])=>`<kbd${key.length>1?' class="wide"':''}>${key}</kbd><p>${label}<small>${hint}</small></p>`).join('');
  touchControls.setActions(c.legend,id);
- touchControls.setToggleStates({flying:controller.flight.active,displaying:active.displaying??false});
+ touchControls.setToggleStates(touchState());
  document.querySelectorAll('[role=tab][data-species]').forEach(tab=>{const on=tab.dataset.species===id;tab.setAttribute('aria-selected',String(on));tab.tabIndex=on?0:-1;});
  sound.setSpecies(id);
  if(persist)try{localStorage.setItem('insect-species',id);}catch{}
