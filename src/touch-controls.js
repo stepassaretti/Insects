@@ -10,7 +10,7 @@ export function setupTouchControls({controller,onActionDown,onActionUp}){
 
  function moveJoystick(event){
   const bounds=joystick.getBoundingClientRect();
-  const radius=(bounds.width-thumb.offsetWidth)/2;
+  const radius=bounds.width/2;
   const rawX=event.clientX-(bounds.left+bounds.width/2);
   const rawY=event.clientY-(bounds.top+bounds.height/2);
   const scale=Math.min(1,radius/Math.max(radius,Math.hypot(rawX,rawY)));
