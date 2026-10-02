@@ -2,6 +2,7 @@ import {CockroachSound} from './sound.js';
 import {createCockroach} from './cockroach.js';
 import {createMantis} from './mantis.js';
 import {createWasp} from './wasp.js';
+import {setupTouchControls} from './touch-controls.js';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import './style.css';
@@ -10,7 +11,7 @@ const sound=new CockroachSound();
 const canvas=document.querySelector('#scene');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,stencil:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.setClearColor(0xd9ddd5);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0xd9ddd5,25,90);
-const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.05,160);camera.position.set(0,15,1.1);
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.05,160);let portraitLayout=innerHeight>innerWidth;camera.position.set(0,portraitLayout?20:15,1.1);
 const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.enablePan=false;controls.enableRotate=false;controls.minDistance=12;controls.maxDistance=40;controls.maxPolarAngle=Math.PI*.47;controls.target.set(0,.4,0);
 scene.add(new THREE.HemisphereLight(0xf3f5e7,0x706450,2.4));const sun=new THREE.DirectionalLight(0xffedce,4.3);sun.position.set(-5,10,4);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:.1,far:30});sun.shadow.normalBias=.018;sun.shadow.bias=-.0002;sun.shadow.radius=4;scene.add(sun,sun.target);const fill=new THREE.DirectionalLight(0xe1ecff,1.1);fill.position.set(4,3,-6);scene.add(fill);
 // Infinite ground: finite floor and grid patches that follow the camera
@@ -92,12 +93,18 @@ floor.position.set(Math.round(controls.target.x/GRAIN_TILE)*GRAIN_TILE,0,Math.ro
 // in view below it, shrinking with distance along with the grid.
 const slant=1/(1+controller.flight.altitude*.3);sun.position.copy(controller.position).add(new THREE.Vector3(-5*slant,10,4*slant));sun.target.position.copy(controller.position);}
 controls.update();const zoomOut=Math.max(0,camera.position.distanceTo(controls.target)-20);const altitude=controller.flight.altitude;scene.fog.near=25+zoomOut+altitude*1.2;scene.fog.far=90+zoomOut*2+altitude*2; // Screen-space offset leaves room for the instrumentation.
-camera.setViewOffset(innerWidth,innerHeight,-innerWidth*.09,innerHeight*.015,innerWidth,innerHeight);
+if(portraitLayout)camera.setViewOffset(innerWidth,innerHeight,0,innerHeight*.04,innerWidth,innerHeight);else camera.setViewOffset(innerWidth,innerHeight,-innerWidth*.09,innerHeight*.015,innerWidth,innerHeight);
 sound.update({speed:controller.speed,turn:controller.turn,legs:active.legs,wingSpread:active.wings.soundLevel??active.wings.motion.spread,paused,hidden:document.hidden});
-renderer.render(scene,camera);frame++;fpsTime+=elapsed;if(frame%6===0){document.querySelector('#speed').textContent=(Math.abs(controller.speed)/active.bodyLength).toFixed(2);document.querySelector('#speedbar').style.width=`${clamp(Math.abs(controller.speed)/(controller.topSpeed||params.sprintSpeed)*100,0,100)}%`;const words=copy[active.id].states;document.querySelector('#state').textContent=paused?'PAUSED':active.attacking?'STRIKING':active.stinging?'STINGING':controller.flight.altitude>.05?(controller.flight.landing?'LANDING':'FLYING'):active.wings.motion.spread>.5&&words.wings?words.wings:Math.abs(controller.speed)>(controller.walkSpeed??params.walkSpeed)*1.2?words.fast:Math.abs(controller.speed)>.1?words.walk:Math.abs(controller.turn)>.1?'TURNING':'EXPLORING';document.querySelectorAll('.gait b').forEach((el,i)=>{el.style.background=active.legs[i].planted?'currentColor':'transparent';});}if(fpsTime>.5){document.querySelector('#fps').textContent=Math.round(frame/fpsTime);frame=0;fpsTime=0;}}
+renderer.render(scene,camera);frame++;fpsTime+=elapsed;if(frame%6===0){touchControls?.setToggleStates({flying:controller.flight.active,displaying:active.displaying??false});document.querySelector('#speed').textContent=(Math.abs(controller.speed)/active.bodyLength).toFixed(2);document.querySelector('#speedbar').style.width=`${clamp(Math.abs(controller.speed)/(controller.topSpeed||params.sprintSpeed)*100,0,100)}%`;const words=copy[active.id].states;document.querySelector('#state').textContent=paused?'PAUSED':active.attacking?'STRIKING':active.stinging?'STINGING':controller.flight.altitude>.05?(controller.flight.landing?'LANDING':'FLYING'):active.wings.motion.spread>.5&&words.wings?words.wings:Math.abs(controller.speed)>(controller.walkSpeed??params.walkSpeed)*1.2?words.fast:Math.abs(controller.speed)>.1?words.walk:Math.abs(controller.turn)>.1?'TURNING':'EXPLORING';document.querySelectorAll('.gait b').forEach((el,i)=>{el.style.background=active.legs[i].planted?'currentColor':'transparent';});}if(fpsTime>.5){document.querySelector('#fps').textContent=Math.round(frame/fpsTime);frame=0;fpsTime=0;}}
 requestAnimationFrame(animate);
-const movementCodes=['KeyW','KeyA','KeyS','KeyD','KeyC','KeyF','KeyG','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','ShiftLeft','ShiftRight'];window.addEventListener('keydown',e=>{if(e.target.matches('input,button'))return;if(movementCodes.includes(e.code)){e.preventDefault();controller.keys.add(e.code);if(!e.repeat){active.onKey?.(e.code);if(e.code==='KeyF')controller.flight.toggle();}}});window.addEventListener('keyup',e=>controller.keys.delete(e.code));window.addEventListener('blur',()=>{controller.keys.clear();sound.blocked=true;sound.silence();});window.addEventListener('focus',()=>sound.blocked=false);document.addEventListener('visibilitychange',()=>{controller.keys.clear();if(document.hidden)sound.silence();last=performance.now();});
-window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
+const movementCodes=['KeyW','KeyA','KeyS','KeyD','KeyC','KeyF','KeyG','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','ShiftLeft','ShiftRight'];
+const physicalKeys=new Set(),touchKeys=new Set();let touchControls;
+function syncKeys(){controller.keys.clear();for(const code of physicalKeys)controller.keys.add(code);for(const code of touchKeys)controller.keys.add(code);}
+window.addEventListener('keydown',e=>{if(e.target.matches('input,button'))return;if(movementCodes.includes(e.code)){e.preventDefault();physicalKeys.add(e.code);syncKeys();if(!e.repeat){active.onKey?.(e.code);if(e.code==='KeyF')controller.flight.toggle();}}});
+window.addEventListener('keyup',e=>{physicalKeys.delete(e.code);syncKeys();});
+function releaseInputs(){physicalKeys.clear();touchKeys.clear();touchControls?.reset();syncKeys();}
+window.addEventListener('blur',()=>{releaseInputs();sound.blocked=true;sound.silence();});window.addEventListener('focus',()=>sound.blocked=false);document.addEventListener('visibilitychange',()=>{if(document.hidden){releaseInputs();sound.silence();}last=performance.now();});
+window.addEventListener('resize',()=>{const nextPortrait=innerHeight>innerWidth;if(nextPortrait!==portraitLayout){camera.position.sub(controls.target).multiplyScalar(nextPortrait?20/15:15/20).add(controls.target);portraitLayout=nextPortrait;}renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
 window.__simulation={controller,params,renderer,camera,controls,sound,species,selectSpecies,get active(){return active;},get locomotion(){return active.locomotion;},get legs(){return active.legs;},get dorsalBody(){return active.wings;},get time(){return t;}};
 
 // There is no sound toggle any more, so never start muted from an old preference.
@@ -112,6 +119,15 @@ const copy={
  cockroach:{brand:'B',family:'Blattodea',species:'PERIPLANETA AMERICANA',headline:'Built to scuttle.',lede:'Six legs. Two tripods. A movement system<br>refined over millions of years.',number:'01',common:'AMERICAN COCKROACH',detail:'Procedural locomotion · articulated anatomy',title:'Blattodea — Locomotion study',states:{walk:'SCUTTLING',fast:'SPRINTING'},legend:[['F','FLY','Take off · land'],['C','CAUTIOUS','Hold to slow down'],['SHIFT','SPRINT','Hold to double speed']]},
  wasp:{brand:'V',family:'Vespidae',species:'VESPULA VULGARIS',headline:'Built to sting.',lede:'Six legs, four hooked wings and a<br>pinched waist, on the same tripod gait.',number:'02',common:'COMMON WASP',detail:'Procedural locomotion · painted cuticle · wing buzz',title:'Vespidae — Locomotion study',states:{walk:'WALKING',fast:'RUNNING',wings:'BUZZING'},legend:[['F','FLY','Take off · land'],['C','CAUTIOUS','Hold to slow down'],['G','STING','Hold to curl & sting']]},
 };
+touchControls=setupTouchControls({
+ controller,
+ onActionDown(code,hold){
+  if(hold){touchKeys.add(code);syncKeys();}
+  else{active.onKey?.(code);if(code==='KeyF')controller.flight.toggle();}
+  touchControls.setToggleStates({flying:controller.flight.active,displaying:active.displaying??false});
+ },
+ onActionUp(code){touchKeys.delete(code);syncKeys();},
+});
 function selectSpecies(id,{persist=true}={}){
  if(!species[id])id='cockroach';
  const next=species[id];
@@ -124,6 +140,8 @@ function selectSpecies(id,{persist=true}={}){
  controller.profile=next.profile;
  document.querySelector('.hint').innerHTML=id==='mantis'?'Scroll to zoom · F: take off / land · D: open/close wings · G: strike':'Fixed overhead camera · Scroll to zoom · F: take off / land';
  document.querySelector('.keys').innerHTML=c.legend.map(([key,label,hint])=>`<kbd${key.length>1?' class="wide"':''}>${key}</kbd><p>${label}<small>${hint}</small></p>`).join('');
+ touchControls.setActions(c.legend,id);
+ touchControls.setToggleStates({flying:controller.flight.active,displaying:active.displaying??false});
  document.querySelectorAll('[role=tab][data-species]').forEach(tab=>{const on=tab.dataset.species===id;tab.setAttribute('aria-selected',String(on));tab.tabIndex=on?0:-1;});
  sound.setSpecies(id);
  if(persist)try{localStorage.setItem('insect-species',id);}catch{}
