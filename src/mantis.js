@@ -107,13 +107,14 @@ export function createMantis(controller){
  const wings={motion:wingMotion,pairs,get soundLevel(){return wingMotion.spread*fastBeat;}};
  function update(dt,t,{idle,debug,flying}){
   const fast=flying,display=displayOn;updateTremor(dt,t);
-  // Cautious stalking (C): the forelegs draw in toward each other.
-  stalk=THREE.MathUtils.damp(stalk,controller.keys.has('KeyC')?1:0,6,dt);
+  // Cautious stalking (C) applies on the ground; flight returns the forelegs to rest.
+  const stalking=!fast&&controller.keys.has('KeyC');
+  stalk=THREE.MathUtils.damp(stalk,stalking?1:0,6,dt);
   locomotion.update(dt,t,idle);wingMotion.update(dt,display||fast,fast);micro.update(t,dt,controller.turn);
   fastBeat=THREE.MathUtils.damp(fastBeat,fast?1:0,12,dt);
-  // Wing display raises the forelegs; a strike overrides that pose briefly.
+  // Wing display raises the forelegs on the ground; flight keeps their resting pose.
   // C overrides the display pose: forelegs drawn in, wings stay as they are.
-  const stalking=controller.keys.has('KeyC');armOpen=THREE.MathUtils.damp(armOpen,(display||fast)&&!stalking?.75:0,8,dt);
+  armOpen=THREE.MathUtils.damp(armOpen,display&&!fast&&!stalking?.75:0,8,dt);
   const strike=armOpen;
   if(strikeTime>=0){strikeTime+=dt;if(strikeTime>=STRIKE.back)strikeTime=-1;}
   attacking=strikeTime>=0;
@@ -132,7 +133,7 @@ export function createMantis(controller){
   const armTurn=locomotion.gait.phase*2/2.5;
   const activeSide=Math.floor(armTurn)%2===0?-1:1;
   const reach=Math.sin((armTurn%1)*Math.PI)**2;
-  const walkingAmount=Math.min(1,Math.abs(controller.speed)/2);
+  const walkingAmount=fast?0:Math.min(1,Math.abs(controller.speed)/2);
   for(const arm of arms){
    const swayTarget=arm.side===activeSide?-reach*.075*walkingAmount*(1-armOpen)**2:0;
    arm.walkSway=THREE.MathUtils.damp(arm.walkSway,swayTarget,8,dt);
