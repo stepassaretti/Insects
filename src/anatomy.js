@@ -68,6 +68,8 @@ export function createDorsalBody(parent,ellipsoid,underside,shell){
  referenceImage.onerror=()=>console.warn('Cockroach reference texture failed to load; using chestnut fallback.');
  referenceImage.src=`${import.meta.env.BASE_URL}cockroach-reference.png`;
  const specimenMaterial=new THREE.MeshPhysicalMaterial({map:reference,color:0xb9a796,roughness:.34,metalness:0,clearcoat:.9,clearcoatRoughness:.1,specularIntensity:.8,transparent:false,opacity:1,transmission:0});
+ const forewingMaterial=specimenMaterial.clone();
+ Object.assign(forewingMaterial,{roughness:.82,clearcoat:0,specularIntensity:.12});
  ellipsoid(dorsal,underside,[0,-.05,.35],[.52,.085,1.08]);
  // Exposed abdomen: overlapping glossy tergites separated by dark sutures.
  const abdomenPlates=[];
@@ -86,7 +88,7 @@ export function createDorsalBody(parent,ellipsoid,underside,shell){
  for(const side of [1,-1]){
   const hinge=new THREE.Vector3(side*.22,.09,-.67);
   const outerPivot=new THREE.Group();outerPivot.position.copy(hinge);dorsal.add(outerPivot);
-  const outer=plate(outerPivot,specimenMaterial,wings,{side,y:side===-1?.113:.09,crown:.04,referenceUV:true,overlap:true});
+  const outer=plate(outerPivot,forewingMaterial,wings,{side,y:side===-1?.113:.09,crown:.04,referenceUV:true,overlap:true});
   outer.geometry.translate(-hinge.x,-hinge.y,-hinge.z);
   // Two independently phased membrane pairs beneath the raised covers.
   const membranes=[];
