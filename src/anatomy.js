@@ -67,7 +67,7 @@ export function createDorsalBody(parent,ellipsoid,underside,shell){
  const referenceImage=new Image();referenceImage.onload=()=>{referenceContext.drawImage(referenceImage,0,0,512,1024);reference.needsUpdate=true;};
  referenceImage.onerror=()=>console.warn('Cockroach reference texture failed to load; using chestnut fallback.');
  referenceImage.src=`${import.meta.env.BASE_URL}cockroach-reference.png`;
- const specimenMaterial=new THREE.MeshPhysicalMaterial({map:reference,color:0xb9a796,roughness:.82,metalness:0,clearcoat:0,specularIntensity:.12,transparent:false,opacity:1,transmission:0});
+ const specimenMaterial=new THREE.MeshPhysicalMaterial({map:reference,color:0xb9a796,roughness:.34,metalness:0,clearcoat:.9,clearcoatRoughness:.1,specularIntensity:.8,transparent:false,opacity:1,transmission:0});
  ellipsoid(dorsal,underside,[0,-.05,.35],[.52,.085,1.08]);
  // Exposed abdomen: overlapping glossy tergites separated by dark sutures.
  const abdomenPlates=[];

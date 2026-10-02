@@ -14,7 +14,12 @@ function underCovers(material){const m=material.clone();Object.assign(m,{stencil
 // and twitching cerci. Legs live in world space inside `group`.
 export function createCockroach(controller){
  const group=new THREE.Group();
- const shell=createChitinMaterial({seed:5,dark:.83});const underside=createChitinMaterial({seed:7,dark:.53});const legmat=createChitinMaterial({seed:9,dark:1.18});const jointmat=createChitinMaterial({seed:11,dark:.85});const eyeMat=new THREE.MeshPhysicalMaterial({color:0x090b07,roughness:.55,metalness:0,clearcoat:0,specularIntensity:.25});
+ const glossyCuticle=(material,roughness,clearcoat)=>Object.assign(material,{roughness,clearcoat,clearcoatRoughness:.16,specularIntensity:.75});
+ const shell=glossyCuticle(createChitinMaterial({seed:5,dark:.83}),.36,.8);
+ const underside=glossyCuticle(createChitinMaterial({seed:7,dark:.53}),.46,.55);
+ const legmat=glossyCuticle(createChitinMaterial({seed:9,dark:1.18}),.42,.6);
+ const jointmat=glossyCuticle(createChitinMaterial({seed:11,dark:.85}),.43,.55);
+ const eyeMat=new THREE.MeshPhysicalMaterial({color:0x090b07,roughness:.26,metalness:0,clearcoat:1,clearcoatRoughness:.1,specularIntensity:.8});
  const body=new THREE.Group();group.add(body);
  const dorsalBody=createDorsalBody(body,ellipsoid,underside,shell);const head=new THREE.Group();head.position.set(0,-.035,-1.08);body.add(head);ellipsoid(head,shell,[0,-.10,0],[.235,.105,.23]);for(const s of [-1,1])ellipsoid(head,eyeMat,[s*.19,-.07,-.1],[.05,.055,.075]);
  coverLayer(dorsalBody.wingPairs[0].outerPivot.children[0].material);
