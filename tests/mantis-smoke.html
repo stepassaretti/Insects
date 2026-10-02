@@ -1,0 +1,16 @@
+<!doctype html><title>Mantis verification</title><pre id="result">Running</pre><script type="module">
+import {createMantis} from '/src/mantis.js';
+import {CockroachController} from '/src/simulation.js';
+try{
+const c=new CockroachController(),m=createMantis(c),idle={adjust:-1,creep:0};c.profile=m.profile;let t=0;
+const tick=()=>{c.update(1/120,idle);m.update(1/120,t+=1/120,{idle,debug:false,flying:c.flight.wingsActive});};
+const check=(ok,label)=>{if(!ok)throw new Error(label);};
+tick();check(m.wings.pairs.length===2,'two forewings and two hindwings');for(const pair of m.wings.pairs){check(pair.membrane.sections.length>=12,'articulated hindwing pleats');for(const section of pair.membrane.sections){const uv=section.mesh.geometry.attributes.uv;check([...uv.array].every(v=>Number.isFinite(v)&&v>=0&&v<=1),'hindwing texture coordinates');}}
+check(m.legs.length===6&&m.locomotion.legs.length===4,'four walking legs plus two forelegs');
+m.onKey('KeyG');for(let i=0;i<8;i++)tick();check(m.attacking&&m.strikeTime>0,'G launches a strike');for(let i=0;i<40;i++)tick();check(!m.attacking,'strike returns to rest within about 0.4 s');
+m.onKey('KeyD');const yaw=c.yaw;for(let i=0;i<120;i++)tick();check(m.displaying&&m.wings.motion.spread>.99,'D toggles the display on without holding');check(c.yaw===yaw,'D does not turn');check(m.armOpen>.7,'wing display raises arms');check(m.wings.soundLevel===0,'display does not buzz');check(m.wings.pairs.every(p=>Math.abs(Math.abs(p.pivot.rotation.y)-Math.PI/2)<.05),'90 degree wing spread (within the display tremor)');check(m.wings.pairs.every(p=>p.pivot.rotation.x<-.65),'covers lift obliquely');check(m.wings.pairs.every(p=>p.membrane.sections.every(s=>Math.abs(s.hinge.rotation.y)<.01)),'all hindwing pleats fan open');m.onKey('KeyD');check(!m.displaying,'second D press dismisses the display');c.flight.toggle();for(let i=0;i<120;i++)tick();check(m.wings.soundLevel>.99,'F drives fast wings');check(c.position.y>.3,'F lifts the mantis');check(m.wings.motion.spread>.99,'wings open');c.flight.toggle();for(let i=0;i<300;i++)tick();check(m.wings.motion.spread===0&&c.position.y===0,'L lands and wings close');check(m.wings.pairs.every(p=>p.membrane.sections.every(s=>Math.abs(s.hinge.rotation.y)>.04)),'hindwing pleats fold under covers');check(m.wings.motion.state==='WINGS_CLOSED','resting wing state');
+c.keys.add('KeyW');for(let i=0;i<150;i++)tick();check(c.position.z<-1,'forward movement');check(m.locomotion.legs.every(l=>l.foot.toArray().every(Number.isFinite)),'finite foot positions');
+c.keys.clear();c.keys.add('ArrowLeft');for(let i=0;i<120;i++)tick();check(m.torsoPivot.rotation.y>.17&&m.torsoPivot.rotation.y<.35,'torso turns 10-20 degrees');c.keys.clear();m.reset();check(!m.attacking&&m.wings.motion.spread===0,'reset');
+document.querySelector('#result').textContent='PASS: four walking legs, G strike and recovery, D toggle display without turning or buzzing, F flight and L landing, 90-degree spread, 10–20-degree torso lean, movement, texture coordinates, reset.';
+}catch(e){document.querySelector('#result').textContent='FAIL: '+e.stack;}
+</script>
